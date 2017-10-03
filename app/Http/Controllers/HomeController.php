@@ -25,6 +25,9 @@ class HomeController extends AuthorizedController
             $baseUrl = Request::get('base-url');
             $targetUrl = $this->parseUrl($baseUrl);
 
+            $title = '';
+            $index = 0;
+
             if($targetUrl) {
                 // check value first
                 $firstPage = $targetUrl . '&pn=0';
@@ -32,34 +35,43 @@ class HomeController extends AuthorizedController
                 if($content == false) {
                     $data['error'] = 'The url is not valid. Please check the url again.';
                 } else {
+                    $urls = array();
+
                     $isPDF = $this->checkIfPDF($content);
                     if($isPDF) {
-                        $title = $this->getTitle($content);
+                        $temp = explode('/index.php?', $baseUrl);
+                        $targetSiteBaseUrl = $temp[0];
 
-                        // make path
-                        $targetPath = public_path('novels/' . $title);
-                        mkpath($targetPath);
+                        $targetSiteBasePath = $this->parsePDFBasePath($content);
+                        if($targetSiteBasePath != '') {
+                            $targetSiteBasePath = dirname($targetSiteBasePath);
+                            $title = $this->getTitle($content);
 
-                        $urls = array();
-                        $index = 1;
-                        while(true) {
-                            // check pdf is exist
-                            //$filePath = "$targetPath/$index.pdf";
-                            $url = "http://www.uriminzokkiri.com/contents/book/literature/2017/08/book_literature_2017-08-10_dn32605/img/$index.pdf";
-                            $res = check_remote_file($url);
+                            // make path
+                            $targetPath = public_path('novels/' . $title);
+                            mkpath($targetPath);
 
-                            if($res == false) {
-                                break;
+                            $index = 1;
+                            while(true) {
+                                // check pdf is exist
+                                //$filePath = "$targetPath/$index.pdf";
+                                $url = "$targetSiteBaseUrl/$targetSiteBasePath/$index.pdf";
+                                $res = check_remote_file($url);
+
+                                if($res == false) {
+                                    break;
+                                }
+
+                                $urls[] = $url;
+
+                                /*if($index > 3) {
+                                    break;
+                                }*/
+
+                                $index++;
                             }
-
-                            $urls[] = $url;
-
-                            /*if($index > 3) {
-                                break;
-                            }*/
-
-                            $index++;
                         }
+
 
                         $data['title'] = $title;
                         $data['totalPages'] = $index;
@@ -209,6 +221,21 @@ class HomeController extends AuthorizedController
         }
 
         return @inner_html($node);
+    }
+
+    private function parsePDFBasePath($content) {
+        $doc = new \DOMDocument;
+        $doc->preserveWhiteSpace = FALSE;
+        @$doc->loadHTML($content);
+
+        // remove comments
+        $xpath = new \DOMXPath($doc);
+        foreach($xpath->query('//img[contains(attribute::src, "contents/book/literature")]') as $e ) {
+            // Delete this node
+            return $e->getAttribute('src');
+        }
+
+        return '';
     }
 
     /**
