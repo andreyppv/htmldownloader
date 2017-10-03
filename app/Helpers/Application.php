@@ -66,3 +66,44 @@ function get_elements_by_class(&$parentNode, $tagName, $className) {
 
     return $nodes;
 }
+
+function get_param_from_url($url, $field='') {
+    $parts = parse_url($url);
+    $query = array();
+
+    if(isset($parts['query'])) {
+        parse_str($parts['query'], $query);
+    }
+
+    if($field == '') {
+        return $query;
+    }
+
+    return isset($query[$field]) ? $query[$field] : '';
+}
+
+function download_pdf($url, $copyPath) {
+    $pdf = file_get_contents($url);
+    if($pdf == false) {
+        return false;
+    }
+
+    file_put_contents($copyPath, $pdf);
+    return true;
+}
+
+/**
+ * check if remote file is exist
+ *
+ * @param mixed $url
+ */
+function check_remote_file($url) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_NOBODY, true);
+    curl_exec($ch);
+    $retCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    // $retcode >= 400 -> not found, $retcode = 200, found.
+    curl_close($ch);
+
+    return $retCode == 200 ? true : false;
+}

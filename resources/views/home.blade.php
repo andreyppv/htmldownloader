@@ -6,7 +6,6 @@
     <div class="panel-heading">Dashboard</div>
 
     <div class="panel-body">
-
         {{ Form::open(array('url' => route('target.download'), 'class' => 'form-horizontal', 'method' => 'get')) }}
             <div class="form-group">
                 <label class="control-label col-sm-2" for="email">Base Url:</label>
@@ -30,6 +29,15 @@
                     @elseif(isset($title))
                         <div class="alert alert-success">
                             Title: {{ $title }}, Pages: {{ $totalPages }}
+                        </div>
+                    @endif
+
+                    @if(isset($urls) && is_array($urls))
+                        <a class="plugin-chrome hidden plugin-install" href="https://chrome.google.com/webstore/detail/chrono-download-manager/mciiogijehkdemklbdcbfkefimifhecn?hl=en">Install 'Chrono Download Manager'</a>
+                        <a class="plugin-firefox hidden plugin-install" href="https://addons.mozilla.org/en-US/firefox/addon/downthemall/">Install 'Download Them All'</a>
+
+                        <div class="urls">
+                            {!! implode('<br>', $urls) !!}
                         </div>
                     @endif
                 </div>

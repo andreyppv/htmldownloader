@@ -32,42 +32,79 @@ class HomeController extends AuthorizedController
                 if($content == false) {
                     $data['error'] = 'The url is not valid. Please check the url again.';
                 } else {
-                    $html = $this->parseContent($content);
-                    if($html == false) {
-                        $data['error'] = 'The url is not valid. Please check the url again.';
-                    } else {
-                        // get title and total pages
+                    $isPDF = $this->checkIfPDF($content);
+                    if($isPDF) {
                         $title = $this->getTitle($content);
 
                         // make path
                         $targetPath = public_path('novels/' . $title);
                         mkpath($targetPath);
 
-                        // save first page
-                        $this->saveHtml($html, $targetPath);
-
-                        // download pages
+                        $urls = array();
                         $index = 1;
                         while(true) {
-                            $pageUrl = $targetUrl . "&pn=$index";
-                            $html = @file_get_contents($pageUrl);
-                            if($html == false) {
+                            // check pdf is exist
+                            //$filePath = "$targetPath/$index.pdf";
+                            $url = "http://www.uriminzokkiri.com/contents/book/literature/2017/08/book_literature_2017-08-10_dn32605/img/$index.pdf";
+                            $res = check_remote_file($url);
+
+                            if($res == false) {
                                 break;
                             }
 
-                            $content = $this->parseContent($html);
-                            if($content == false || strlen($content) < 500) {
-                                break;
-                            }
+                            $urls[] = $url;
 
-                            // save content to html
-                            $this->saveHtml($content, $targetPath, $index);
+                            /*if($index > 3) {
+                                break;
+                            }*/
 
                             $index++;
                         }
 
                         $data['title'] = $title;
                         $data['totalPages'] = $index;
+                        $data['urls'] = $urls;
+                    } else {
+                        $html = $this->parseContent($content);
+                        if($html == false) {
+                            $data['error'] = 'The url is not valid. Please check the url again.';
+                        } else {
+                            // get title and total pages
+                            $title = $this->getTitle($content);
+
+                            // make path
+                            $targetPath = public_path('novels/' . $title);
+                            mkpath($targetPath);
+
+                            // save first page
+                            $this->saveHtml($html, $targetPath);
+
+                            // download pages
+                            $index = 1;
+                            while(true) {
+                                $pageUrl = $targetUrl . "&pn=$index";
+                                $html = @file_get_contents($pageUrl);
+                                if($html == false) {
+                                    break;
+                                }
+
+                                $content = $this->parseContent($html);
+                                if($content == false || strlen($content) < 500) {
+                                    break;
+                                }
+
+                                // save content to html
+                                $this->saveHtml($content, $targetPath, $index);
+
+                                $index++;
+                                /*if($index == 3) {
+                                    break;
+                                }*/
+                            }
+
+                            $data['title'] = $title;
+                            $data['totalPages'] = $index;
+                        }
                     }
                 }
             }
@@ -112,6 +149,16 @@ class HomeController extends AuthorizedController
         return mb_convert_encoding($title, "UTF-8") ?: 'No Title Detected';
     }
 
+    private function checkIfPDF($content) {
+        // check if this is pdf novel
+        $isPDF = strpos($content, 'function showcontent()');
+        if($isPDF != false) {
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * @param $content
      * @return bool
@@ -151,7 +198,14 @@ class HomeController extends AuthorizedController
         // replace all link with #
         $links = $node->getElementsByTagName('a'); // get first
         foreach($links as $link) {
-            $link->setAttribute('href','#');
+            $url = $link->getAttribute('href');
+            $pn = get_param_from_url($url, 'pn');
+            if($pn >= 0) {
+                $url = sprintf('%03d.html', $pn);
+            } else {
+                $url = '#';
+            }
+            $link->setAttribute('href', $url);
         }
 
         return @inner_html($node);
@@ -163,8 +217,9 @@ class HomeController extends AuthorizedController
      * @param int $index
      */
     private function saveHtml($content, $path, $index=0) {
-        $fileName = $path . '/' . sprintf('%02d', $index) . '.html';
-        $content = view('novel.page', compact('content'));
+        $fileName = $path . '/' . sprintf('%03d.html', $index);
+        $content = view('novel.page', compact('content', 'index'));
+
         $file = fopen($fileName, 'w+');
         fwrite($file, $content);
         fclose($file);
