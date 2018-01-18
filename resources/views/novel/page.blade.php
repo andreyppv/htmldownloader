@@ -3,7 +3,7 @@
     <meta charset="utf-8">
 
     <style>
-        p { padding-left: 0 !important; }
+        p { padding-left: 0 !important; text-align: left; }
     </style>
 </head>
 <body>
