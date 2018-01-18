@@ -30,14 +30,15 @@ class HomeController extends AuthorizedController
             }
 
             $baseUrl = Request::get('base-url');
+            $startIndex = Request::get('start-index');
             $targetUrl = $this->parseUrl($baseUrl, $pageIndexKey);
 
             $title = '';
-            $index = 0;
+            $index = $startIndex;
 
             if($targetUrl) {
                 // check value first
-                $firstPage = $targetUrl . "&$pageIndexKey=0";
+                $firstPage = $targetUrl . "&$pageIndexKey=".$index;
                 $content = @file_get_contents($firstPage);
                 if($content == false)
                 {
@@ -63,7 +64,6 @@ class HomeController extends AuthorizedController
 
                             mkpath($targetPath);
 
-                            $index = 1;
                             while(true) {
                                 // check pdf is exist
                                 //$filePath = "$targetPath/$index.pdf";
@@ -106,7 +106,6 @@ class HomeController extends AuthorizedController
                             $this->saveHtml($html, $targetPath);
 
                             // download pages
-                            $index = 1;
                             while(true) {
                                 $pageUrl = $targetUrl . "&$pageIndexKey=$index";
                                 $html = @file_get_contents($pageUrl);
@@ -114,7 +113,8 @@ class HomeController extends AuthorizedController
                                     break;
                                 }
 
-                                $content = $this->parseContent($html);
+                                $content = $this->parseContent($html, $site);
+
                                 if($content == false || strlen($content) < 500) {
                                     break;
                                 }
@@ -261,9 +261,11 @@ class HomeController extends AuthorizedController
 
             // get right content
             $node = @$doc->getElementById('fpage');
+
             if(!$node) {
                 return false;
             }
+
 
             // replace all link with #
             $links = $node->getElementsByTagName('a'); // get first
@@ -278,7 +280,8 @@ class HomeController extends AuthorizedController
                 $link->setAttribute('href', $url);
             }
 
-            return @inner_html($node);
+            $result = @inner_html($node);
+            return $result;
         }
     }
 

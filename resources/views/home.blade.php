@@ -21,6 +21,12 @@
                 </div>
             </div>
             <div class="form-group">
+                <label class="control-label col-sm-2" for="email">Start Index:</label>
+                <div class="col-sm-10">
+                    <input type="text" name="start-index" class="form-control" id="start-index" placeholder="Enter Start Page Number" value="{{ request('start-index') }}" required>
+                </div>
+            </div>
+            <div class="form-group">
                 <div class="col-sm-offset-2 col-sm-10">
                     <button type="submit" class="btn btn-default">Download</button>
                 </div>
