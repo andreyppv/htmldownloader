@@ -8,6 +8,13 @@
     <div class="panel-body">
         {{ Form::open(array('url' => route('target.download'), 'class' => 'form-horizontal', 'method' => 'get')) }}
             <div class="form-group">
+                <label class="control-label col-sm-2" for="email">Site:</label>
+                <div class="col-sm-10">
+                    {!! Form::select('site', ['uri' => 'uri', 'today' => 'today'], old('site'), ['class' => 'form-control']) !!}
+                </div>
+            </div>
+
+            <div class="form-group">
                 <label class="control-label col-sm-2" for="email">Base Url:</label>
                 <div class="col-sm-10">
                     <input type="text" name="base-url" class="form-control" id="base-url" placeholder="Enter Base Url" value="{{ request('base-url') }}" required autofocus>

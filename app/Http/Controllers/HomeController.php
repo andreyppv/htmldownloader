@@ -22,23 +22,34 @@ class HomeController extends AuthorizedController
         $data = [];
 
         if(Request::has('base-url')) {
+            $site = Request::get('site');
+            if($site == 'uri') {
+                $pageIndexKey = 'pn';
+            } else {
+                $pageIndexKey = 'p';
+            }
+
             $baseUrl = Request::get('base-url');
-            $targetUrl = $this->parseUrl($baseUrl);
+            $targetUrl = $this->parseUrl($baseUrl, $pageIndexKey);
 
             $title = '';
             $index = 0;
 
             if($targetUrl) {
                 // check value first
-                $firstPage = $targetUrl . '&pn=0';
+                $firstPage = $targetUrl . "&$pageIndexKey=0";
                 $content = @file_get_contents($firstPage);
-                if($content == false) {
+                if($content == false)
+                {
                     $data['error'] = 'The url is not valid. Please check the url again.';
-                } else {
+                }
+                else
+                {
                     $urls = array();
 
                     $isPDF = $this->checkIfPDF($content);
-                    if($isPDF) {
+                    if($isPDF)
+                    {
                         $temp = explode('/index.php?', $baseUrl);
                         $targetSiteBaseUrl = $temp[0];
 
@@ -49,6 +60,7 @@ class HomeController extends AuthorizedController
 
                             // make path
                             $targetPath = public_path('novels/' . $title);
+
                             mkpath($targetPath);
 
                             $index = 1;
@@ -76,8 +88,10 @@ class HomeController extends AuthorizedController
                         $data['title'] = $title;
                         $data['totalPages'] = $index;
                         $data['urls'] = $urls;
-                    } else {
-                        $html = $this->parseContent($content);
+                    }
+                    else
+                    {
+                        $html = $this->parseContent($content, $site);
                         if($html == false) {
                             $data['error'] = 'The url is not valid. Please check the url again.';
                         } else {
@@ -94,7 +108,7 @@ class HomeController extends AuthorizedController
                             // download pages
                             $index = 1;
                             while(true) {
-                                $pageUrl = $targetUrl . "&pn=$index";
+                                $pageUrl = $targetUrl . "&$pageIndexKey=$index";
                                 $html = @file_get_contents($pageUrl);
                                 if($html == false) {
                                     break;
@@ -129,12 +143,13 @@ class HomeController extends AuthorizedController
      * @param $url
      * @return string
      */
-    private function parseUrl($url)
+    private function parseUrl($url, $pageIndexKey='pn')
     {
         $parsedUrl = parse_url(prep_url($url));
         parse_str(isset($parsedUrl['query'])?$parsedUrl['query']:'', $params);
-        if(isset($params['pn'])) {
-            unset($params['pn']);
+
+        if(isset($params[$pageIndexKey])) {
+            unset($params[$pageIndexKey]);
         }
 
         $scheme = (isset($parsedUrl['sheme']) ? $parsedUrl['sheme'] : 'http') . '://';
@@ -157,7 +172,7 @@ class HomeController extends AuthorizedController
         @$doc->loadHTML($content);
 
         $nodes = $doc->getElementsByTagName('title');
-        $title = @$nodes->item(0)->nodeValue;
+        $title = trim(@$nodes->item(0)->nodeValue);
         return mb_convert_encoding($title, "UTF-8") ?: 'No Title Detected';
     }
 
@@ -175,52 +190,96 @@ class HomeController extends AuthorizedController
      * @param $content
      * @return bool
      */
-    private function parseContent($content) {
+    private function parseContent($content, $site='uri') {
         $doc = new \DOMDocument;
         $doc->preserveWhiteSpace = FALSE;
         @$doc->loadHTML($content);
 
-        // remove comments
-        $xpath = new \DOMXPath($doc);
-        foreach($xpath->query('//ul[contains(attribute::class, "comment_list")]') as $e ) {
-            // Delete this node
-            $e->parentNode->removeChild($e);
-        }
-        foreach($xpath->query('//div[contains(attribute::class, "comment")]') as $e ) {
-            // Delete this node
-            $e->parentNode->removeChild($e);
-        }
-
-        // get right content
-        $node = @$doc->getElementById('wrapper');//->getElementsByTagName('div')->item(0);
-        if(!$node) {
-            return false;
-        }
-
-        $node = $node->getElementsByTagName('div')->item(0);
-        if(!$node) {
-            return false;
-        }
-
-        $node = $node->getElementsByTagName('div')->item(0);
-        if(!$node) {
-            return false;
-        }
-
-        // replace all link with #
-        $links = $node->getElementsByTagName('a'); // get first
-        foreach($links as $link) {
-            $url = $link->getAttribute('href');
-            $pn = get_param_from_url($url, 'pn');
-            if($pn >= 0) {
-                $url = sprintf('%03d.html', $pn);
-            } else {
-                $url = '#';
+        if($site == 'uri') {
+            // remove comments
+            $xpath = new \DOMXPath($doc);
+            foreach($xpath->query('//ul[contains(attribute::class, "comment_list")]') as $e ) {
+                // Delete this node
+                $e->parentNode->removeChild($e);
             }
-            $link->setAttribute('href', $url);
-        }
+            foreach($xpath->query('//div[contains(attribute::class, "comment")]') as $e ) {
+                // Delete this node
+                $e->parentNode->removeChild($e);
+            }
 
-        return @inner_html($node);
+            // get right content
+            $node = @$doc->getElementById('wrapper');
+            if(!$node) {
+                return false;
+            }
+
+            $node = $node->getElementsByTagName('div')->item(0);
+            if(!$node) {
+                return false;
+            }
+
+            $node = $node->getElementsByTagName('div')->item(0);
+            if(!$node) {
+                return false;
+            }
+
+            // replace all link with #
+            $links = $node->getElementsByTagName('a'); // get first
+            foreach($links as $link) {
+                $url = $link->getAttribute('href');
+                $pn = get_param_from_url($url, 'pn');
+                if($pn >= 0) {
+                    $url = sprintf('%03d.html', $pn);
+                } else {
+                    $url = '#';
+                }
+                $link->setAttribute('href', $url);
+            }
+
+            return @inner_html($node);
+        } else {
+            // remove socials
+            $xpath = new \DOMXPath($doc);
+            foreach($xpath->query('//div[contains(attribute::class, "sns_css")]') as $e ) {
+                // Delete this node
+                $e->parentNode->removeChild($e);
+            }
+
+            foreach($xpath->query('//div[contains(attribute::class, "sns_banner")]') as $e ) {
+                // Delete this node
+                $e->parentNode->removeChild($e);
+            }
+
+            foreach($xpath->query('//div[contains(attribute::class, "footer")]') as $e ) {
+                // Delete this node
+                $e->parentNode->removeChild($e);
+            }
+            foreach($xpath->query('//div[contains(attribute::class, "header")]') as $e ) {
+                // Delete this node
+                $e->parentNode->removeChild($e);
+            }
+
+            // get right content
+            $node = @$doc->getElementById('fpage');
+            if(!$node) {
+                return false;
+            }
+
+            // replace all link with #
+            $links = $node->getElementsByTagName('a'); // get first
+            foreach($links as $link) {
+                $url = $link->getAttribute('href');
+                $pn = get_param_from_url($url, 'p');
+                if($pn >= 0) {
+                    $url = sprintf('%03d.html', $pn);
+                } else {
+                    $url = '#';
+                }
+                $link->setAttribute('href', $url);
+            }
+
+            return @inner_html($node);
+        }
     }
 
     private function parsePDFBasePath($content) {
